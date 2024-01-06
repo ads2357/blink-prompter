@@ -1,0 +1,68 @@
+#!/bin/bash
+
+# Prototype for blink reminders via screen flash
+# No feedback loop just random flashes.
+
+# Aim is for approx 10 blinks per minute which is normal when not
+# focussing on an object.
+
+# Could setting to low a rate unintentionally train the user to have a lower blink rate?
+# Could use of this tool further reduce blink rate when viewing monitors without it? Or even when not viewing monitors?
+# Could it trigger epilepsy?
+# Could it cause some other, unforeseen problem?
+
+# I suppose we will find out.
+
+TFIX=5
+TRAN_MAX=2
+
+ONE_OUTPUT=$(xrandr --current |grep ' connected' | awk '{print $1}'|head -n1)
+
+blinkterm() {
+    printf \\e[?5h; sleep .1; printf \\e[?5l
+}
+
+blink () {
+      xrandr --output "${ONE_OUTPUT}"  --brightness 0.5 ; sleep 0.1; xrandr --output "${ONE_OUTPUT}"  --brightness 1
+}
+
+clean () {
+      xrandr --output "${ONE_OUTPUT}"  --brightness 1
+      blinkterm
+      exit 0
+}
+
+mainloop () {
+    while true; do
+        TRAN=$(( $RANDOM % TRAN_MAX ))
+
+        sleep $(( TRAN + TFIX ))
+
+        if [ -z "$TERM_NOT_X" ]; then
+            blink
+        else
+            blinkterm
+        fi
+    done
+}
+
+main () {
+    trap clean INT TERM
+
+    while getopts ":t" option; do
+        case $option in
+            t)
+                TERM_NOT_X=1
+                break;;
+            \?)
+                echo "Invalid option: $option" >&2
+                exit;;
+        esac
+    done
+
+    echo "Running with terminal=${TERM_NOT_X} on output ${ONE_OUTPUT}." >&2
+
+    mainloop
+}
+
+main "$@"
